@@ -1,0 +1,50 @@
+---
+- name: Wait for port 22 to come online
+  hosts: all
+  gather_facts: false
+  pre_tasks:
+    - name: Waiting for port 22...
+      wait_for_connection:
+        delay: 5
+        connect_timeout: 10
+        timeout: 600
+
+- name: Firewall issues
+  hosts: all
+  become: yes
+  roles:
+      - geerlingguy.firewall
+
+- name: Docker y Docker Compose installation
+  hosts: all
+  become: true
+  vars:
+    pip_install_packages:
+      - name: docker
+      - name: docker-compose
+
+  roles:
+    - geerlingguy.docker
+    - geerlingguy.pip
+
+- name: Docker-compose file copy
+  hosts: all
+  become: yes
+  tasks:
+    - name: Copy docker-compose.yaml to remote
+      copy:
+        src: "docker-compose.yaml"
+        dest: "/home/{{ ansible_user }}"
+
+- name: Joomla installation
+  hosts: all
+  become: true
+  gather_facts: yes
+  tasks:
+    - name: Run "docker-compose up"
+      community.docker.docker_compose:
+        project_src: "/home/{{ ansible_user }}/"
+        files:
+          - docker-compose.yaml
+        build: true
+        state: present
